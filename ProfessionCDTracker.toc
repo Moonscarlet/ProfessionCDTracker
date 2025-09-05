@@ -1,0 +1,8 @@
+## Interface: 30300
+## Title: Profession CD Tracker
+## Notes: Tracks profession cooldowns across characters and sessions
+## Author: Moonscarlet
+## Version: 1.0.0
+## SavedVariables: ProfessionCDTrackerDB
+
+ProfessionCDTracker.lua

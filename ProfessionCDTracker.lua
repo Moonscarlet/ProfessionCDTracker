@@ -1,6 +1,6 @@
 -- ProfessionCDTracker.lua
 local ADDON_NAME = ...
-local VERSION = "1.4"
+local VERSION = "1.5"
 
 ProfessionCDTrackerDB = ProfessionCDTrackerDB or { realms = {} }
 
@@ -16,24 +16,19 @@ local TRACKED = {
     [15846] = { label = "Salt Shaker", type = "item", icon = 15846 },
 }
 
--- UI parent frame
-local ui = CreateFrame("Frame", "PCT_UI", UIParent, "BackdropTemplate")
-ui:SetSize(350, 200)
-ui:SetPoint("CENTER")
-ui:SetBackdrop({ bgFile = "Interface/Tooltips/UI-Tooltip-Background" })
-ui:SetBackdropColor(0, 0, 0, 0.7)
-ui:Hide()
+-- Bars container (invisible, draggable if unlocked)
+local container = CreateFrame("Frame", "PCT_Container", UIParent)
+container:SetPoint("CENTER")
+container:SetSize(350, 200)
+container:SetMovable(true)
+container:EnableMouse(false) -- only enabled on unlock
 
--- Moveable
-ui:SetMovable(true)
-ui:EnableMouse(true)
-ui:RegisterForDrag("LeftButton")
-ui:SetScript("OnDragStart", ui.StartMoving)
-ui:SetScript("OnDragStop", ui.StopMovingOrSizing)
-
-ui.title = ui:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-ui.title:SetPoint("TOP", 0, -5)
-ui.title:SetText("Profession Cooldown Tracker")
+-- dragging scripts
+container:RegisterForDrag("LeftButton")
+container:SetScript("OnDragStart", function(self)
+    if self:IsMovable() then self:StartMoving() end
+end)
+container:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
 
 -- Helper: get character key
 local function CharKey()
@@ -90,11 +85,11 @@ local function ScanTrackedCooldowns()
     ScanItems()
 end
 
--- UI elements
+-- Bars
 local bars = {}
 
 local function CreateBar(index)
-    local bar = CreateFrame("StatusBar", nil, ui)
+    local bar = CreateFrame("StatusBar", nil, container)
     bar:SetSize(320, 20)
     bar:SetStatusBarTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
     bar:SetStatusBarColor(0, 1, 0)
@@ -103,7 +98,7 @@ local function CreateBar(index)
     bar.bg:SetColorTexture(0, 0, 0, 0.8)
 
     if index == 1 then
-        bar:SetPoint("TOP", ui, "TOP", 0, -30)
+        bar:SetPoint("TOP", container, "TOP", 0, -5)
     else
         bar:SetPoint("TOP", bars[index-1], "BOTTOM", 0, -5)
     end
@@ -161,7 +156,7 @@ SlashCmdList["PCT"] = function(msg)
     if msg == "scan" then
         ScanTrackedCooldowns()
         UpdateUI()
-        ui:Show()
+        container:Show()
         print("|cff33ff99PCT|r Manual scan complete.")
     elseif msg == "debug" then
         local num = GetNumTradeSkills()
@@ -173,11 +168,19 @@ SlashCmdList["PCT"] = function(msg)
         end
     elseif msg == "show" then
         UpdateUI()
-        ui:Show()
+        container:Show()
     elseif msg == "hide" then
-        ui:Hide()
+        container:Hide()
+    elseif msg == "unlock" then
+        container:EnableMouse(true)
+        container:SetMovable(true)
+        print("|cff33ff99PCT|r Bars unlocked (drag to move).")
+    elseif msg == "lock" then
+        container:EnableMouse(false)
+        container:SetMovable(false)
+        print("|cff33ff99PCT|r Bars locked.")
     else
-        print("|cff33ff99PCT|r Commands: /pct scan, /pct show, /pct hide, /pct debug")
+        print("|cff33ff99PCT|r Commands: /pct scan, /pct show, /pct hide, /pct lock, /pct unlock, /pct debug")
     end
 end
 
@@ -188,7 +191,7 @@ f:SetScript("OnEvent", function(self, event, arg1)
     elseif event == "PLAYER_LOGIN" then
         ScanTrackedCooldowns()
         UpdateUI()
-        ui:Show()
+        container:Show()
     elseif event == "TRADE_SKILL_SHOW" then
         ScanTradeSkills()
         UpdateUI()
@@ -196,8 +199,8 @@ f:SetScript("OnEvent", function(self, event, arg1)
 end)
 
 -- OnUpdate for live bar ticking
-ui:SetScript("OnUpdate", function()
-    if ui:IsShown() then
+container:SetScript("OnUpdate", function()
+    if container:IsShown() then
         UpdateUI()
     end
 end)

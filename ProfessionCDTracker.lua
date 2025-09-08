@@ -3,17 +3,20 @@ local ADDON_NAME = ...
 local VERSION = "1.6"
 
 ProfessionCDTrackerDB = ProfessionCDTrackerDB or { realms = {}, settings = {} }
+ProfessionCDTrackerDB.settings = ProfessionCDTrackerDB.settings or {}
 local settings = ProfessionCDTrackerDB.settings
 
 -- Defaults
-settings.barWidth  = settings.barWidth  or 200
+settings.barWidth  = settings.barWidth  or 180
 settings.barHeight = settings.barHeight or 12
+if settings.locked == nil then settings.locked = false end
 
 -- Frame + Events
 local f = CreateFrame("Frame")
 f:RegisterEvent("ADDON_LOADED")
 f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("TRADE_SKILL_SHOW")
+f:RegisterEvent("PLAYER_LOGOUT")
 
 -- Our tracked cooldowns
 local TRACKED = {
@@ -26,13 +29,54 @@ local container = CreateFrame("Frame", "PCT_Container", UIParent)
 container:SetPoint("CENTER")
 container:SetSize(settings.barWidth, 200)
 container:SetMovable(true)
-container:EnableMouse(true)
+container:EnableMouse(false)
+container:SetClampedToScreen(true)
+container:SetUserPlaced(true)
 
 container:RegisterForDrag("LeftButton")
 container:SetScript("OnDragStart", function(self)
     if self:IsMovable() then self:StartMoving() end
 end)
-container:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+local function SaveContainerPosition()
+    local point, relativeTo, relativePoint, xOfs, yOfs = container:GetPoint()
+    settings.anchor = settings.anchor or {}
+    settings.anchor.point = point
+    settings.anchor.relativePoint = relativePoint
+    settings.anchor.x = xOfs
+    settings.anchor.y = yOfs
+end
+
+container:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    SaveContainerPosition()
+end)
+
+local function RestoreContainerPosition()
+    if settings.anchor and settings.anchor.point then
+        container:ClearAllPoints()
+        container:SetPoint(settings.anchor.point, UIParent, settings.anchor.relativePoint or settings.anchor.point, settings.anchor.x or 0, settings.anchor.y or 0)
+    else
+        container:ClearAllPoints()
+        container:SetPoint("CENTER")
+    end
+end
+
+-- Declare bars early so other functions can reference it safely
+local bars = {}
+
+local function ApplyLockState()
+    if settings.locked then
+        container:SetMovable(false)
+        for _, bar in ipairs(bars or {}) do
+            if bar then bar:EnableMouse(false) end
+        end
+    else
+        container:SetMovable(true)
+        for _, bar in ipairs(bars or {}) do
+            if bar then bar:EnableMouse(true) end
+        end
+    end
+end
 
 -- Helpers
 local function CharKey()
@@ -86,14 +130,23 @@ local function ScanTrackedCooldowns()
     ScanItems()
 end
 
--- Bars
-local bars = {}
+-- Bars (already declared earlier)
 
 local function CreateBar(index)
     local bar = CreateFrame("StatusBar", nil, container)
     bar:SetSize(settings.barWidth, settings.barHeight)
     bar:SetStatusBarTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
     bar:SetStatusBarColor(1, 0, 0)
+    bar:EnableMouse(true)
+    bar:RegisterForDrag("LeftButton")
+    bar:SetMovable(true)
+    bar:SetScript("OnDragStart", function(self)
+        if not settings.locked then container:StartMoving() end
+    end)
+    bar:SetScript("OnDragStop", function(self)
+        container:StopMovingOrSizing()
+        SaveContainerPosition()
+    end)
 
     bar.bg = bar:CreateTexture(nil, "BACKGROUND")
     bar.bg:SetAllPoints()
@@ -117,6 +170,7 @@ end
 
 local function UpdateUI()
     local i = 1
+    local numVisible = 0
     for realm, chars in pairs(ProfessionCDTrackerDB.realms) do
         for char, data in pairs(chars) do
             if data.cooldowns then
@@ -148,12 +202,16 @@ local function UpdateUI()
 
                         bar:Show()
                         i = i + 1
+                        numVisible = numVisible + 1
                     end
                 end
             end
         end
     end
     for j = i, #bars do bars[j]:Hide() end
+    -- Resize container to exactly fit visible bars
+    container:SetWidth(settings.barWidth)
+    container:SetHeight(settings.barHeight * numVisible)
 end
 
 -- Slash commands
@@ -169,10 +227,13 @@ SlashCmdList["PCT"] = function(msg)
     elseif args[1] == "hide" then
         container:Hide()
     elseif args[1] == "unlock" then
-        container:EnableMouse(true); container:SetMovable(true)
+        settings.locked = false
+        ApplyLockState()
         print("|cff33ff99PCT|r Bars unlocked (drag to move).")
     elseif args[1] == "lock" then
-        container:EnableMouse(false); container:SetMovable(false)
+        settings.locked = true
+        ApplyLockState()
+        SaveContainerPosition()
         print("|cff33ff99PCT|r Bars locked.")
     elseif args[1] == "width" and tonumber(args[2]) then
         settings.barWidth = tonumber(args[2])
@@ -191,10 +252,16 @@ end
 f:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == ADDON_NAME then
         print("|cff33ff99PCT|r Loaded " .. ADDON_NAME .. " v" .. VERSION)
+        -- Restore early in case PLAYER_LOGIN timing varies
+        RestoreContainerPosition()
+        ApplyLockState()
     elseif event == "PLAYER_LOGIN" then
         ScanTrackedCooldowns()
         UpdateUI()
         container:Show()
+    elseif event == "PLAYER_LOGOUT" then
+        -- Ensure position/state saved
+        SaveContainerPosition()
     elseif event == "TRADE_SKILL_SHOW" then
         ScanTradeSkills()
         UpdateUI()

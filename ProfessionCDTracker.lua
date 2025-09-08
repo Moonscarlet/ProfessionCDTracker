@@ -93,16 +93,16 @@ local function CreateBar(index)
     local bar = CreateFrame("StatusBar", nil, container)
     bar:SetSize(settings.barWidth, settings.barHeight)
     bar:SetStatusBarTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
-    bar:SetStatusBarColor(0, 1, 0)
+    bar:SetStatusBarColor(1, 0, 0)
 
     bar.bg = bar:CreateTexture(nil, "BACKGROUND")
     bar.bg:SetAllPoints()
     bar.bg:SetColorTexture(0, 0, 0, 0.8)
 
     if index == 1 then
-        bar:SetPoint("TOP", container, "TOP", 0, -5)
+        bar:SetPoint("TOP", container, "TOP", 0, 0)
     else
-        bar:SetPoint("TOP", bars[index-1], "BOTTOM", 0, -5)
+        bar:SetPoint("TOP", bars[index-1], "BOTTOM", 0, 0)
     end
 
     bar.left = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -136,6 +136,12 @@ local function UpdateUI()
                         bar:SetHeight(settings.barHeight)
                         bar:SetMinMaxValues(0, duration)
                         bar:SetValue(duration - remain)
+
+                        if remain <= 0 then
+                            bar:SetStatusBarColor(0, 1, 0)
+                        else
+                            bar:SetStatusBarColor(1, 0, 0)
+                        end
 
                         bar.left:SetText(char .. " - " .. label)
                         bar.right:SetText(SecondsToTime(remain) .. " | " .. readyAt)

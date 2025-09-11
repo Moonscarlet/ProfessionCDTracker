@@ -1,6 +1,6 @@
 -- ProfessionCDTracker.lua
 local ADDON_NAME = ...
-local VERSION = "1.6"
+local VERSION = "1.7"
 
 ProfessionCDTrackerDB = ProfessionCDTrackerDB or { realms = {}, settings = {} }
 ProfessionCDTrackerDB.settings = ProfessionCDTrackerDB.settings or {}
@@ -17,6 +17,7 @@ f:RegisterEvent("ADDON_LOADED")
 f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("TRADE_SKILL_SHOW")
 f:RegisterEvent("PLAYER_LOGOUT")
+f:RegisterEvent("BAG_UPDATE_COOLDOWN")
 
 -- Our tracked cooldowns
 local TRACKED = {
@@ -91,10 +92,17 @@ local function SaveCooldown(key, start, duration)
     local charDB = ProfessionCDTrackerDB.realms[realm][name]
 
     charDB.cooldowns = charDB.cooldowns or {}
+    -- Persist as absolute epoch so cross-session math is correct
+    local nowUI = GetTime()
+    local remain = math.max(0, (start or 0) + (duration or 0) - nowUI)
+    if duration and duration > 0 then
+        -- Clamp to the known duration to avoid bogus huge remains from bad APIs/saves
+        remain = math.min(remain, duration)
+    end
+    local expiresEpoch = time() + remain
     charDB.cooldowns[key] = {
-        start = start,
         duration = duration,
-        expires = start + duration,
+        expiresEpoch = expiresEpoch,
     }
 end
 
@@ -119,7 +127,10 @@ local function ScanItems()
             local start, duration, enabled = GetItemCooldown(itemId)
             if enabled == 1 and duration > 0 then
                 SaveCooldown(itemId, start, duration)
-                print("|cff33ff99PCT|r Found", info.label, "CD:", SecondsToTime(duration))
+                local remain = math.max(0, (start or 0) + duration - GetTime())
+                if remain > 0 and remain < (120 * 24 * 60 * 60) then
+                    print("|cff33ff99PCT|r Found", info.label, "CD:", SecondsToTime(remain))
+                end
             end
         end
     end
@@ -175,12 +186,17 @@ local function UpdateUI()
         for char, data in pairs(chars) do
             if data.cooldowns then
                 for key, cd in pairs(data.cooldowns) do
-                    if cd.expires then
-                        local now = GetTime()
-                        local remain = cd.expires - now
+                    local expiresEpoch = cd.expiresEpoch or cd.expires
+                    if expiresEpoch then
+                        local nowEpoch = time()
+                        local remain = expiresEpoch - nowEpoch
                         if remain < 0 then remain = 0 end
                         local duration = cd.duration or 1
-                        local readyAt = date("%H:%M", time() + remain)
+                        if duration > 0 then
+                            -- Clamp to stored duration to prevent bogus long remains
+                            remain = math.min(remain, duration)
+                        end
+                        local readyAt = date("%H:%M", nowEpoch + remain)
 
                         local info = TRACKED[key] or TRACKED[cd.label]
                         local label = (type(key) == "string" and key) or (info and info.label) or "?"
@@ -189,7 +205,7 @@ local function UpdateUI()
                         bar:SetWidth(settings.barWidth)
                         bar:SetHeight(settings.barHeight)
                         bar:SetMinMaxValues(0, duration)
-                        bar:SetValue(duration - remain)
+                        bar:SetValue(duration - math.min(remain, duration))
 
                         if remain <= 0 then
                             bar:SetStatusBarColor(0, 1, 0)
@@ -255,6 +271,27 @@ f:SetScript("OnEvent", function(self, event, arg1)
         -- Restore early in case PLAYER_LOGIN timing varies
         RestoreContainerPosition()
         ApplyLockState()
+        -- Migrate any legacy session-based cooldowns (expires using GetTime()) to epoch
+        for realm, chars in pairs(ProfessionCDTrackerDB.realms or {}) do
+            for char, data in pairs(chars or {}) do
+                if data.cooldowns then
+                    for key, cd in pairs(data.cooldowns) do
+                        if cd.expires and not cd.expiresEpoch then
+                            local remain = (cd.expires or 0) - GetTime()
+                            if remain < 0 then remain = 0 end
+                            -- Clamp to recorded duration when present
+                            local dur = tonumber(cd.duration) or 0
+                            if dur > 0 then
+                                remain = math.min(remain, dur)
+                            end
+                            cd.expiresEpoch = time() + remain
+                            cd.expires = nil
+                            cd.start = nil
+                        end
+                    end
+                end
+            end
+        end
     elseif event == "PLAYER_LOGIN" then
         ScanTrackedCooldowns()
         UpdateUI()
@@ -264,6 +301,9 @@ f:SetScript("OnEvent", function(self, event, arg1)
         SaveContainerPosition()
     elseif event == "TRADE_SKILL_SHOW" then
         ScanTradeSkills()
+        UpdateUI()
+    elseif event == "BAG_UPDATE_COOLDOWN" then
+        ScanItems()
         UpdateUI()
     end
 end)

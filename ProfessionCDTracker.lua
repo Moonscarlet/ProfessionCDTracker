@@ -7,7 +7,7 @@ ProfessionCDTrackerDB.settings = ProfessionCDTrackerDB.settings or {}
 local settings = ProfessionCDTrackerDB.settings
 
 -- Defaults
-settings.barWidth  = settings.barWidth  or 180
+settings.barWidth  = settings.barWidth  or 205
 settings.barHeight = settings.barHeight or 12
 if settings.locked == nil then settings.locked = false end
 
@@ -22,6 +22,7 @@ f:RegisterEvent("BAG_UPDATE_COOLDOWN")
 -- Our tracked cooldowns
 local TRACKED = {
     ["Mooncloth"] = { label = "Mooncloth", type = "trade", icon = 14342 },
+    ["Transmute: Arcanite"] = { label = "Transmute: Arcanite", type = "trade", icon = 12360 },
     [15846] = { label = "Salt Shaker", type = "item", icon = 15846 },
 }
 
@@ -115,7 +116,7 @@ local function ScanTradeSkills()
         if name and cd and cd > 0 then
             if TRACKED[name] and TRACKED[name].type == "trade" then
                 SaveCooldown(name, GetTime(), cd)
-                print("|cff33ff99PCT|r Found", name, "CD:", SecondsToTime(cd))
+                -- print("|cff33ff99PCT|r Found", name, "CD:", SecondsToTime(cd))
             end
         end
     end
@@ -129,7 +130,7 @@ local function ScanItems()
                 SaveCooldown(itemId, start, duration)
                 local remain = math.max(0, (start or 0) + duration - GetTime())
                 if remain > 0 and remain < (120 * 24 * 60 * 60) then
-                    print("|cff33ff99PCT|r Found", info.label, "CD:", SecondsToTime(remain))
+                    -- print("|cff33ff99PCT|r Found", info.label, "CD:", SecondsToTime(remain))
                 end
             end
         end

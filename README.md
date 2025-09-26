@@ -8,7 +8,7 @@ Works with WoW version 3.3.35a.
 
 1. Download this addon and make sure the folder is named `ProfessionCDTracker`.
 2. Put the folder into `World of Warcraft\\Interface\\AddOns\\`.
-3. Restart the game (or type `/reload`).
+3. Restart the game.
 
 ### Use
 
@@ -21,3 +21,6 @@ Optional:
 - `/pct scan` — refresh cooldowns
 - `/pct width <number>` — change bar width (e.g. 240)
 - `/pct height <number>` — change bar height (e.g. 14)
+
+Note:
+- Bars may not appear till after first use of cooldowns.

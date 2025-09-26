@@ -4,6 +4,8 @@ A simple addon that shows your profession cooldowns across your characters.
 
 Works with WoW version 3.3.35a.
 
+![Bar example](barexample.png)
+
 ### Install
 
 1. Download this addon and make sure the folder is named `ProfessionCDTracker`.

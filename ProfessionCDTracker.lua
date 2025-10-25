@@ -7,7 +7,7 @@ ProfessionCDTrackerDB.settings = ProfessionCDTrackerDB.settings or {}
 local settings = ProfessionCDTrackerDB.settings
 
 -- Defaults
-settings.barWidth  = settings.barWidth  or 205
+settings.barWidth  = settings.barWidth or 205
 settings.barHeight = settings.barHeight or 12
 if settings.locked == nil then settings.locked = false end
 
@@ -214,7 +214,8 @@ local function UpdateUI()
                             bar:SetStatusBarColor(1, 0, 0)
                         end
 
-                        bar.left:SetText(char .. " - " .. label)
+                        -- bar.left:SetText(char .. " - " .. label)
+                        bar.left:SetText(char .. "-" .. ((label and label:match("^(.-):")) or label or ""))
                         bar.right:SetText(SecondsToTime(remain) .. " | " .. readyAt)
 
                         bar:Show()

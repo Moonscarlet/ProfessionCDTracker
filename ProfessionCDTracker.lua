@@ -181,8 +181,8 @@ local function CreateBar(index)
 end
 
 local function UpdateUI()
-    local i = 1
-    local numVisible = 0
+    -- Collect all cooldowns into a sortable array
+    local cooldownData = {}
     for realm, chars in pairs(ProfessionCDTrackerDB.realms) do
         for char, data in pairs(chars) do
             if data.cooldowns then
@@ -197,36 +197,67 @@ local function UpdateUI()
                             -- Clamp to stored duration to prevent bogus long remains
                             remain = math.min(remain, duration)
                         end
-                        local readyAt = date("%H:%M", nowEpoch + remain)
-
+                        
                         local info = TRACKED[key] or TRACKED[cd.label]
                         local label = (type(key) == "string" and key) or (info and info.label) or "?"
-                        local bar = bars[i] or CreateBar(i)
-
-                        bar:SetWidth(settings.barWidth)
-                        bar:SetHeight(settings.barHeight)
-                        bar:SetMinMaxValues(0, duration)
-                        bar:SetValue(duration - math.min(remain, duration))
-
-                        if remain <= 0 then
-                            bar:SetStatusBarColor(0, 1, 0)
-                        else
-                            bar:SetStatusBarColor(1, 0, 0)
-                        end
-
-                        -- bar.left:SetText(char .. " - " .. label)
-                        bar.left:SetText(char .. "-" .. ((label and label:match("^(.-):")) or label or ""))
-                        bar.right:SetText(SecondsToTime(remain) .. " | " .. readyAt)
-
-                        bar:Show()
-                        i = i + 1
-                        numVisible = numVisible + 1
+                        
+                        table.insert(cooldownData, {
+                            char = char,
+                            key = key,
+                            label = label,
+                            remain = remain,
+                            duration = duration,
+                            expiresEpoch = expiresEpoch
+                        })
                     end
                 end
             end
         end
     end
+    
+    -- Sort by remaining time (ascending - least time first)
+    table.sort(cooldownData, function(a, b)
+        return a.remain < b.remain
+    end)
+    
+    -- Now update bars in sorted order
+    local i = 1
+    local numVisible = 0
+    for _, data in ipairs(cooldownData) do
+        local remain = data.remain
+        local duration = data.duration
+        local char = data.char
+        local label = data.label
+        local expiresEpoch = data.expiresEpoch
+        
+        local nowEpoch = time()
+        local readyAt = date("%H:%M", nowEpoch + remain)
+        
+        local bar = bars[i] or CreateBar(i)
+        
+        bar:SetWidth(settings.barWidth)
+        bar:SetHeight(settings.barHeight)
+        bar:SetMinMaxValues(0, duration)
+        bar:SetValue(duration - math.min(remain, duration))
+        
+        if remain <= 0 then
+            bar:SetStatusBarColor(0, 1, 0)
+        else
+            bar:SetStatusBarColor(1, 0, 0)
+        end
+        
+        -- bar.left:SetText(char .. " - " .. label)
+        bar.left:SetText(char .. "-" .. ((label and label:match("^(.-):")) or label or ""))
+        bar.right:SetText(SecondsToTime(remain) .. " | " .. readyAt)
+        
+        bar:Show()
+        i = i + 1
+        numVisible = numVisible + 1
+    end
+    
+    -- Hide unused bars
     for j = i, #bars do bars[j]:Hide() end
+    
     -- Resize container to exactly fit visible bars
     container:SetWidth(settings.barWidth)
     container:SetHeight(settings.barHeight * numVisible)

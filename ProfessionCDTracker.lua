@@ -10,6 +10,8 @@ local settings = ProfessionCDTrackerDB.settings
 settings.barWidth  = settings.barWidth or 205
 settings.barHeight = settings.barHeight or 12
 if settings.locked == nil then settings.locked = false end
+if settings.showReadyOnly == nil then settings.showReadyOnly = false end
+settings.readyThresholdHours = settings.readyThresholdHours or 10
 
 -- Frame + Events
 local f = CreateFrame("Frame")
@@ -215,6 +217,18 @@ local function UpdateUI()
         end
     end
     
+    -- Filter by ready time if enabled
+    if settings.showReadyOnly then
+        local readyThreshold = (settings.readyThresholdHours or 10) * 60 * 60 -- hours to seconds
+        local filteredData = {}
+        for _, data in ipairs(cooldownData) do
+            if data.remain < readyThreshold then
+                table.insert(filteredData, data)
+            end
+        end
+        cooldownData = filteredData
+    end
+    
     -- Sort by remaining time (ascending - least time first)
     table.sort(cooldownData, function(a, b)
         return a.remain < b.remain
@@ -292,8 +306,25 @@ SlashCmdList["PCT"] = function(msg)
         settings.barHeight = tonumber(args[2])
         print("|cff33ff99PCT|r Bar height set to", settings.barHeight)
         UpdateUI()
+    elseif args[1] == "ready" then
+        if args[2] and tonumber(args[2]) then
+            -- Set threshold and enable filter
+            settings.readyThresholdHours = tonumber(args[2])
+            settings.showReadyOnly = true
+            print("|cff33ff99PCT|r Showing only cooldowns with < " .. settings.readyThresholdHours .. " hours remaining.")
+            UpdateUI()
+        else
+            -- Toggle filter on/off
+            settings.showReadyOnly = not settings.showReadyOnly
+            if settings.showReadyOnly then
+                print("|cff33ff99PCT|r Showing only cooldowns with < " .. settings.readyThresholdHours .. " hours remaining.")
+            else
+                print("|cff33ff99PCT|r Showing all cooldowns.")
+            end
+            UpdateUI()
+        end
     else
-        print("|cff33ff99PCT|r Commands: /pct scan, /pct show, /pct hide, /pct lock, /pct unlock, /pct width <n>, /pct height <n>")
+        print("|cff33ff99PCT|r Commands: /pct scan, /pct show, /pct hide, /pct lock, /pct unlock, /pct width <n>, /pct height <n>, /pct ready [<hr>]")
     end
 end
 

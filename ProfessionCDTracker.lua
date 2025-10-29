@@ -23,7 +23,7 @@ f:RegisterEvent("BAG_UPDATE_COOLDOWN")
 local TRACKED = {
     ["Mooncloth"] = { label = "Mooncloth", type = "trade", icon = 14342 },
     ["Transmute: Arcanite"] = { label = "Transmute: Arcanite", type = "trade", icon = 12360 },
-    [15846] = { label = "Salt Shaker", type = "item", icon = 15846 },
+    -- [15846] = { label = "Salt Shaker", type = "item", icon = 15846 },
 }
 
 -- Bars container (invisible, draggable if unlocked)

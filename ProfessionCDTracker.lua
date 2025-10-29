@@ -6,12 +6,13 @@ ProfessionCDTrackerDB = ProfessionCDTrackerDB or { realms = {}, settings = {} }
 ProfessionCDTrackerDB.settings = ProfessionCDTrackerDB.settings or {}
 local settings = ProfessionCDTrackerDB.settings
 
--- Defaults
+-- Defaults (only set if not already saved)
 settings.barWidth  = settings.barWidth or 205
 settings.barHeight = settings.barHeight or 12
 if settings.locked == nil then settings.locked = false end
+-- Always ensure these keys exist in the table for SavedVariables to track them
 if settings.showReadyOnly == nil then settings.showReadyOnly = false end
-settings.readyThresholdHours = settings.readyThresholdHours or 10
+if settings.readyThresholdHours == nil then settings.readyThresholdHours = 10 end
 
 -- Frame + Events
 local f = CreateFrame("Frame")
@@ -217,9 +218,9 @@ local function UpdateUI()
         end
     end
     
-    -- Filter by ready time if enabled
-    if settings.showReadyOnly then
-        local readyThreshold = (settings.readyThresholdHours or 10) * 60 * 60 -- hours to seconds
+    -- Filter by ready time if enabled (read directly from SavedVariables to ensure we get the latest value)
+    if ProfessionCDTrackerDB.settings.showReadyOnly then
+        local readyThreshold = (ProfessionCDTrackerDB.settings.readyThresholdHours or 10) * 60 * 60 -- hours to seconds
         local filteredData = {}
         for _, data in ipairs(cooldownData) do
             if data.remain < readyThreshold then
@@ -308,16 +309,19 @@ SlashCmdList["PCT"] = function(msg)
         UpdateUI()
     elseif args[1] == "ready" then
         if args[2] and tonumber(args[2]) then
-            -- Set threshold and enable filter
-            settings.readyThresholdHours = tonumber(args[2])
-            settings.showReadyOnly = true
-            print("|cff33ff99PCT|r Showing only cooldowns with < " .. settings.readyThresholdHours .. " hours remaining.")
+            -- Set threshold and enable filter (explicitly set on global table to ensure save)
+            ProfessionCDTrackerDB.settings.readyThresholdHours = tonumber(args[2])
+            ProfessionCDTrackerDB.settings.showReadyOnly = true
+            settings.readyThresholdHours = ProfessionCDTrackerDB.settings.readyThresholdHours
+            settings.showReadyOnly = ProfessionCDTrackerDB.settings.showReadyOnly
+            print("|cff33ff99PCT|r Showing only cooldowns with < " .. ProfessionCDTrackerDB.settings.readyThresholdHours .. " hours remaining.")
             UpdateUI()
         else
-            -- Toggle filter on/off
-            settings.showReadyOnly = not settings.showReadyOnly
-            if settings.showReadyOnly then
-                print("|cff33ff99PCT|r Showing only cooldowns with < " .. settings.readyThresholdHours .. " hours remaining.")
+            -- Toggle filter on/off (explicitly set on global table to ensure save)
+            ProfessionCDTrackerDB.settings.showReadyOnly = not ProfessionCDTrackerDB.settings.showReadyOnly
+            settings.showReadyOnly = ProfessionCDTrackerDB.settings.showReadyOnly
+            if ProfessionCDTrackerDB.settings.showReadyOnly then
+                print("|cff33ff99PCT|r Showing only cooldowns with < " .. ProfessionCDTrackerDB.settings.readyThresholdHours .. " hours remaining.")
             else
                 print("|cff33ff99PCT|r Showing all cooldowns.")
             end
@@ -332,6 +336,17 @@ end
 f:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == ADDON_NAME then
         print("|cff33ff99PCT|r Loaded " .. ADDON_NAME .. " v" .. VERSION)
+        -- Ensure settings table exists and sync local reference
+        ProfessionCDTrackerDB.settings = ProfessionCDTrackerDB.settings or {}
+        -- Update local settings reference to point to the (possibly reloaded) SavedVariables
+        -- Note: Since 'settings' is a local reference, we need to ensure it points to the current table
+        -- But actually, it's already a reference, so we just need to ensure values are set correctly
+        if ProfessionCDTrackerDB.settings.showReadyOnly == nil then
+            ProfessionCDTrackerDB.settings.showReadyOnly = false
+        end
+        if ProfessionCDTrackerDB.settings.readyThresholdHours == nil then
+            ProfessionCDTrackerDB.settings.readyThresholdHours = 10
+        end
         -- Restore early in case PLAYER_LOGIN timing varies
         RestoreContainerPosition()
         ApplyLockState()
@@ -363,6 +378,8 @@ f:SetScript("OnEvent", function(self, event, arg1)
     elseif event == "PLAYER_LOGOUT" then
         -- Ensure position/state saved
         SaveContainerPosition()
+        -- Ensure all settings are explicitly saved (they should auto-save, but being explicit)
+        -- Settings are already in ProfessionCDTrackerDB.settings which is a SavedVariable
     elseif event == "TRADE_SKILL_SHOW" then
         ScanTradeSkills()
         UpdateUI()

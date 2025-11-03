@@ -7,12 +7,13 @@ ProfessionCDTrackerDB.settings = ProfessionCDTrackerDB.settings or {}
 local settings = ProfessionCDTrackerDB.settings
 
 -- Defaults (only set if not already saved)
-settings.barWidth  = settings.barWidth or 192
+settings.barWidth  = settings.barWidth or 170
 settings.barHeight = settings.barHeight or 12
 if settings.locked == nil then settings.locked = false end
 -- Always ensure these keys exist in the table for SavedVariables to track them
 if settings.showReadyOnly == nil then settings.showReadyOnly = false end
 if settings.readyThresholdHours == nil then settings.readyThresholdHours = 10 end
+if settings.showCDName == nil then settings.showCDName = false end
 
 -- Frame + Events
 local f = CreateFrame("Frame")
@@ -286,14 +287,20 @@ local function UpdateUI()
         -- Update left text position to account for icon
         bar.left:SetPoint("LEFT", bar, "LEFT", settings.barHeight + 4, 0)
         
-        -- bar.left:SetText(char .. " - " .. label)
-        local displayLabel = (label and label:match("^(.-):")) or label or ""
-        if displayLabel == "Transmute" then
-            displayLabel = "Trans"
-        elseif displayLabel == "Mooncloth" then
-            displayLabel = "Moon"
+        -- Set left text based on showCDName setting
+        if settings.showCDName then
+            -- bar.left:SetText(char .. " - " .. label)
+            local displayLabel = (label and label:match("^(.-):")) or label or ""
+            if displayLabel == "Transmute" then
+                displayLabel = "Trans"
+            elseif displayLabel == "Mooncloth" then
+                displayLabel = "Moon"
+            end
+            bar.left:SetText(char .. "-" .. displayLabel)
+        else
+            -- Just show character name when CD name is hidden
+            bar.left:SetText(char)
         end
-        bar.left:SetText(char .. "-" .. displayLabel)
         bar.right:SetText(SecondsToTime(remain) .. " | " .. readyAt)
         
         bar:Show()
@@ -358,8 +365,18 @@ SlashCmdList["PCT"] = function(msg)
             end
             UpdateUI()
         end
+    elseif args[1] == "cdname" then
+        -- Toggle CD name display (explicitly set on global table to ensure save)
+        ProfessionCDTrackerDB.settings.showCDName = not ProfessionCDTrackerDB.settings.showCDName
+        settings.showCDName = ProfessionCDTrackerDB.settings.showCDName
+        if ProfessionCDTrackerDB.settings.showCDName then
+            print("|cff33ff99PCT|r Cooldown names shown.")
+        else
+            print("|cff33ff99PCT|r Cooldown names hidden.")
+        end
+        UpdateUI()
     else
-        print("|cff33ff99PCT|r Commands: /pct scan, /pct show, /pct hide, /pct lock, /pct unlock, /pct width <n>, /pct height <n>, /pct ready [<hr>]")
+        print("|cff33ff99PCT|r Commands: /pct scan, /pct show, /pct hide, /pct lock, /pct unlock, /pct width <n>, /pct height <n>, /pct ready [<hr>], /pct cdname")
     end
 end
 
@@ -377,6 +394,9 @@ f:SetScript("OnEvent", function(self, event, arg1)
         end
         if ProfessionCDTrackerDB.settings.readyThresholdHours == nil then
             ProfessionCDTrackerDB.settings.readyThresholdHours = 10
+        end
+        if ProfessionCDTrackerDB.settings.showCDName == nil then
+            ProfessionCDTrackerDB.settings.showCDName = false
         end
         -- Restore early in case PLAYER_LOGIN timing varies
         RestoreContainerPosition()

@@ -173,8 +173,14 @@ local function CreateBar(index)
         bar:SetPoint("TOP", bars[index-1], "BOTTOM", 0, 0)
     end
 
+    -- Create icon texture on the left side of the bar
+    bar.icon = bar:CreateTexture(nil, "OVERLAY")
+    bar.icon:SetSize(settings.barHeight, settings.barHeight)
+    bar.icon:SetPoint("LEFT", bar, "LEFT", 0, 0)
+    bar.icon:SetTexCoord(0.1, 0.9, 0.1, 0.9) -- Trim edges for better appearance
+
     bar.left = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    bar.left:SetPoint("LEFT", bar, "LEFT", 4, 0)
+    bar.left:SetPoint("LEFT", bar, "LEFT", settings.barHeight + 4, 0)
 
     bar.right = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     bar.right:SetPoint("RIGHT", bar, "RIGHT", -4, 0)
@@ -210,7 +216,8 @@ local function UpdateUI()
                             label = label,
                             remain = remain,
                             duration = duration,
-                            expiresEpoch = expiresEpoch
+                            expiresEpoch = expiresEpoch,
+                            icon = info and info.icon
                         })
                     end
                 end
@@ -244,6 +251,7 @@ local function UpdateUI()
         local char = data.char
         local label = data.label
         local expiresEpoch = data.expiresEpoch
+        local iconId = data.icon
         
         local nowEpoch = time()
         local readyAt = date("%H:%M", nowEpoch + remain)
@@ -255,11 +263,28 @@ local function UpdateUI()
         bar:SetMinMaxValues(0, duration)
         bar:SetValue(duration - math.min(remain, duration))
         
+        -- Set icon texture if available
+        if iconId and bar.icon then
+            bar.icon:SetSize(settings.barHeight, settings.barHeight)
+            local iconTexture = GetItemIcon(iconId)
+            if iconTexture then
+                bar.icon:SetTexture(iconTexture)
+                bar.icon:Show()
+            else
+                bar.icon:Hide()
+            end
+        elseif bar.icon then
+            bar.icon:Hide()
+        end
+        
         if remain <= 0 then
             bar:SetStatusBarColor(0, 1, 0)
         else
             bar:SetStatusBarColor(1, 0, 0)
         end
+        
+        -- Update left text position to account for icon
+        bar.left:SetPoint("LEFT", bar, "LEFT", settings.barHeight + 4, 0)
         
         -- bar.left:SetText(char .. " - " .. label)
         local displayLabel = (label and label:match("^(.-):")) or label or ""

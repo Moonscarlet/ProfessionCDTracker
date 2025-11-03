@@ -7,7 +7,7 @@ ProfessionCDTrackerDB.settings = ProfessionCDTrackerDB.settings or {}
 local settings = ProfessionCDTrackerDB.settings
 
 -- Defaults (only set if not already saved)
-settings.barWidth  = settings.barWidth or 205
+settings.barWidth  = settings.barWidth or 192
 settings.barHeight = settings.barHeight or 12
 if settings.locked == nil then settings.locked = false end
 -- Always ensure these keys exist in the table for SavedVariables to track them
@@ -262,7 +262,13 @@ local function UpdateUI()
         end
         
         -- bar.left:SetText(char .. " - " .. label)
-        bar.left:SetText(char .. "-" .. ((label and label:match("^(.-):")) or label or ""))
+        local displayLabel = (label and label:match("^(.-):")) or label or ""
+        if displayLabel == "Transmute" then
+            displayLabel = "Trans"
+        elseif displayLabel == "Mooncloth" then
+            displayLabel = "Moon"
+        end
+        bar.left:SetText(char .. "-" .. displayLabel)
         bar.right:SetText(SecondsToTime(remain) .. " | " .. readyAt)
         
         bar:Show()

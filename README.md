@@ -23,6 +23,8 @@ Optional:
 - `/pct scan` — refresh cooldowns
 - `/pct width <number>` — change bar width (e.g. 240)
 - `/pct height <number>` — change bar height (e.g. 14)
+- `/pct ready [<hours>]` — filter to show only cooldowns ready within threshold (default 10 hours). Use without number to toggle on/off.
+- `/pct cdname` — toggle showing cooldown names on bars (e.g. "Char-Moon" vs just "Char")
 
 Note:
 - Bars may not appear till after first use of cooldowns.

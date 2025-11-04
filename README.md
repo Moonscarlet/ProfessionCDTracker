@@ -6,6 +6,8 @@ Works with WoW version 3.3.35a.
 
 ![Bar example](barexample.png)
 
+![Bar example2](barexample2.png)
+
 ### Install
 
 1. Download this addon and make sure the folder is named `ProfessionCDTracker`.

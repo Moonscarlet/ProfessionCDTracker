@@ -250,6 +250,8 @@ local function UpdateUI()
         local remain = data.remain
         local duration = data.duration
         local char = data.char
+        --trim char name to 10 characters
+        char = string.sub(char, 1, 10)
         local label = data.label
         local expiresEpoch = data.expiresEpoch
         local iconId = data.icon

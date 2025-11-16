@@ -27,7 +27,7 @@ f:RegisterEvent("BAG_UPDATE_COOLDOWN")
 local TRACKED = {
     ["Mooncloth"] = { label = "Mooncloth", type = "trade", icon = 14342 },
     ["Transmute: Arcanite"] = { label = "Transmute: Arcanite", type = "trade", icon = 12360 },
-    ["Transmute: Life to Earth"] = { label = "Transmute: Life to Earth", type = "trade", icon = 7076 },
+    ["Transmute: Life to Earth"] = { label = "Transmute: Life to Earth", type = "trade", icon = 16893 },
     -- [15846] = { label = "Salt Shaker", type = "item", icon = 15846 },
 }
 

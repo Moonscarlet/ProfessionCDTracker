@@ -331,7 +331,11 @@ local function UpdateUI()
             -- Just show character name when CD name is hidden
             bar.left:SetText(char)
         end
-        bar.right:SetText(SecondsToTime(remain) .. " | " .. readyAt)
+        if remain <= 0 then
+            bar.right:SetText("Ready")
+        else
+            bar.right:SetText(SecondsToTime(remain) .. " | " .. readyAt)
+        end
         
         bar:Show()
         i = i + 1

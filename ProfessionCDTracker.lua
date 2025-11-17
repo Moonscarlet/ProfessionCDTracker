@@ -27,7 +27,8 @@ f:RegisterEvent("BAG_UPDATE_COOLDOWN")
 local TRACKED = {
     ["Mooncloth"] = { label = "Mooncloth", type = "trade", icon = 14342 },
     ["Transmute: Arcanite"] = { label = "Transmute: Arcanite", type = "trade", icon = 12360 },
-    ["Transmute: Life to Earth"] = { label = "Transmute: Life to Earth", type = "trade", icon = 16893 },
+    ["Transmute: Life to Earth"] = { label = "Transmute: Life to Earth", type = "trade", icon = 16893, sharedCooldown = "transmute_life_undeath" },
+    ["Transmute: Undeath to Water"] = { label = "Transmute: Undeath to Water", type = "trade", icon = 16893, sharedCooldown = "transmute_life_undeath" },
     -- [15846] = { label = "Salt Shaker", type = "item", icon = 15846 },
 }
 
@@ -219,13 +220,39 @@ local function UpdateUI()
                             remain = remain,
                             duration = duration,
                             expiresEpoch = expiresEpoch,
-                            icon = info and info.icon
+                            icon = info and info.icon,
+                            sharedCooldown = info and info.sharedCooldown
                         })
                     end
                 end
             end
         end
     end
+    
+    -- Filter out duplicates for shared cooldowns (only show one per shared cooldown group)
+    -- Group by character and shared cooldown, keep the one with longest remaining time
+    local sharedCooldownGroups = {}
+    local filteredByShared = {}
+    for _, data in ipairs(cooldownData) do
+        if data.sharedCooldown then
+            local groupKey = data.char .. ":" .. data.sharedCooldown
+            if not sharedCooldownGroups[groupKey] then
+                sharedCooldownGroups[groupKey] = data
+            else
+                -- Keep the one with the longest remaining time (or earliest expiresEpoch)
+                if data.expiresEpoch > sharedCooldownGroups[groupKey].expiresEpoch then
+                    sharedCooldownGroups[groupKey] = data
+                end
+            end
+        else
+            table.insert(filteredByShared, data)
+        end
+    end
+    -- Add the kept shared cooldown entries
+    for _, data in pairs(sharedCooldownGroups) do
+        table.insert(filteredByShared, data)
+    end
+    cooldownData = filteredByShared
     
     -- Filter by ready time if enabled (read directly from SavedVariables to ensure we get the latest value)
     if ProfessionCDTrackerDB.settings.showReadyOnly then

@@ -6,8 +6,6 @@ Works with WoW version 3.3.35a.
 
 ![Bar example](barexample.png)
 
-![Bar example2](barexample2.png)
-
 ### Install
 
 1. Download this addon and make sure the folder is named `ProfessionCDTracker`.
@@ -22,7 +20,6 @@ Works with WoW version 3.3.35a.
 - `/pct lock` — lock it in place
 
 Optional:
-- `/pct scan` — refresh cooldowns
 - `/pct width <number>` — change bar width (e.g. 240)
 - `/pct height <number>` — change bar height (e.g. 14)
 - `/pct ready [<hours>]` — filter to show only cooldowns ready within threshold (default 10 hours). Use without number to toggle on/off.

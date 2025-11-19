@@ -373,11 +373,7 @@ end
 SLASH_PCT1 = "/pct"
 SlashCmdList["PCT"] = function(msg)
     local args = { strsplit(" ", msg:lower()) }
-    if args[1] == "scan" then
-        ScanTrackedCooldowns()
-        UpdateUI()
-        container:Show()
-    elseif args[1] == "show" then
+    if args[1] == "show" then
         UpdateUI(); container:Show()
     elseif args[1] == "hide" then
         container:Hide()
@@ -429,7 +425,7 @@ SlashCmdList["PCT"] = function(msg)
         end
         UpdateUI()
     else
-        print("|cff33ff99PCT|r Commands: /pct scan, /pct show, /pct hide, /pct lock, /pct unlock, /pct width <n>, /pct height <n>, /pct ready [<hr>], /pct cdname")
+        print("|cff33ff99PCT|r Commands: /pct show, /pct hide, /pct lock, /pct unlock, /pct width <n>, /pct height <n>, /pct ready [<hr>], /pct cdname")
     end
 end
 

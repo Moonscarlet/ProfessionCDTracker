@@ -20,15 +20,17 @@ local f = CreateFrame("Frame")
 f:RegisterEvent("ADDON_LOADED")
 f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("TRADE_SKILL_SHOW")
+f:RegisterEvent("TRADE_SKILL_UPDATE")
 f:RegisterEvent("PLAYER_LOGOUT")
 f:RegisterEvent("BAG_UPDATE_COOLDOWN")
+f:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 
 -- Our tracked cooldowns
 local TRACKED = {
-    ["Mooncloth"] = { label = "Mooncloth", type = "trade", icon = 14342 },
-    ["Transmute: Arcanite"] = { label = "Transmute: Arcanite", type = "trade", icon = 12360 },
-    ["Transmute: Life to Earth"] = { label = "Transmute: Life to Earth", type = "trade", icon = 16893, sharedCooldown = "transmute_life_undeath" },
-    ["Transmute: Undeath to Water"] = { label = "Transmute: Undeath to Water", type = "trade", icon = 16893, sharedCooldown = "transmute_life_undeath" },
+    ["Mooncloth"] = { label = "Mooncloth", type = "trade", icon = 14342, duration = 259200 },
+    ["Transmute: Arcanite"] = { label = "Transmute: Arcanite", type = "trade", icon = 12360, duration = 82800 },
+    ["Transmute: Life to Earth"] = { label = "Transmute: Life to Earth", type = "trade", icon = 16893, sharedCooldown = "transmute_life_undeath", duration = 72000 },
+    ["Transmute: Undeath to Water"] = { label = "Transmute: Undeath to Water", type = "trade", icon = 16893, sharedCooldown = "transmute_life_undeath", duration = 72000 },
     -- [15846] = { label = "Salt Shaker", type = "item", icon = 15846 },
 }
 
@@ -99,16 +101,28 @@ local function SaveCooldown(key, start, duration)
     local charDB = ProfessionCDTrackerDB.realms[realm][name]
 
     charDB.cooldowns = charDB.cooldowns or {}
+    
+    -- Handle hardcoded durations for tracked items
+    local trackInfo = TRACKED[key]
+    local hardcodedDuration = trackInfo and trackInfo.duration
+
     -- Persist as absolute epoch so cross-session math is correct
     local nowUI = GetTime()
     local remain = math.max(0, (start or 0) + (duration or 0) - nowUI)
+    
     if duration and duration > 0 then
         -- Clamp to the known duration to avoid bogus huge remains from bad APIs/saves
-        remain = math.min(remain, duration)
+        -- But if we have a hardcoded duration, use that as the clamp cap if larger
+        local cap = hardcodedDuration or duration
+        remain = math.min(remain, cap)
     end
+
+    -- Use hardcoded duration for the DB entry if available
+    local storedDuration = hardcodedDuration or duration
+
     local expiresEpoch = time() + remain
     charDB.cooldowns[key] = {
-        duration = duration,
+        duration = storedDuration,
         expiresEpoch = expiresEpoch,
     }
 end
@@ -211,6 +225,11 @@ local function UpdateUI()
                         end
                         
                         local info = TRACKED[key] or TRACKED[cd.label]
+                        local hardcodedDuration = info and info.duration
+                        if hardcodedDuration then
+                            duration = hardcodedDuration
+                        end
+
                         local label = (type(key) == "string" and key) or (info and info.label) or "?"
                         
                         table.insert(cooldownData, {
@@ -292,7 +311,7 @@ local function UpdateUI()
         bar:SetWidth(settings.barWidth)
         bar:SetHeight(settings.barHeight)
         bar:SetMinMaxValues(0, duration)
-        bar:SetValue(duration - math.min(remain, duration))
+        bar:SetValue(duration - remain)
         
         -- Set icon texture if available
         if iconId and bar.icon then
@@ -415,7 +434,8 @@ SlashCmdList["PCT"] = function(msg)
 end
 
 -- Events
-f:SetScript("OnEvent", function(self, event, arg1)
+f:SetScript("OnEvent", function(self, event, ...)
+    local arg1, arg2 = ...
     if event == "ADDON_LOADED" and arg1 == ADDON_NAME then
         print("|cff33ff99PCT|r Loaded " .. ADDON_NAME .. " v" .. VERSION)
         -- Ensure settings table exists and sync local reference
@@ -465,12 +485,25 @@ f:SetScript("OnEvent", function(self, event, arg1)
         SaveContainerPosition()
         -- Ensure all settings are explicitly saved (they should auto-save, but being explicit)
         -- Settings are already in ProfessionCDTrackerDB.settings which is a SavedVariable
-    elseif event == "TRADE_SKILL_SHOW" then
+    elseif event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_UPDATE" then
         ScanTradeSkills()
         UpdateUI()
     elseif event == "BAG_UPDATE_COOLDOWN" then
         ScanItems()
         UpdateUI()
+    elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+        local unit, spellName = arg1, arg2
+        if unit == "player" and TRACKED[spellName] then
+            ScanTradeSkills()
+            
+            -- Force hardcoded duration on craft completion
+            local info = TRACKED[spellName]
+            if info and info.duration then
+                SaveCooldown(spellName, GetTime(), info.duration)
+            end
+            
+            UpdateUI()
+        end
     end
 end)
 

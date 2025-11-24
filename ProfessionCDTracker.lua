@@ -27,7 +27,7 @@ f:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 
 -- Our tracked cooldowns
 local TRACKED = {
-    ["Mooncloth"] = { label = "Mooncloth", type = "trade", icon = 14342, duration = 327600 },
+    ["Mooncloth"] = { label = "Mooncloth", type = "trade", icon = 14342, duration = 331200 }, --added 1 hr to cd (old:327600)
     ["Transmute: Arcanite"] = { label = "Transmute: Arcanite", type = "trade", icon = 12360, duration = 82800 },
     ["Transmute: Life to Earth"] = { label = "Transmute: Life to Earth", type = "trade", icon = 16893, sharedCooldown = "transmute_life_undeath", duration = 72000 },
     ["Transmute: Undeath to Water"] = { label = "Transmute: Undeath to Water", type = "trade", icon = 16893, sharedCooldown = "transmute_life_undeath", duration = 72000 },

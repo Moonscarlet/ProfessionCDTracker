@@ -14,6 +14,8 @@ if settings.locked == nil then settings.locked = false end
 if settings.showReadyOnly == nil then settings.showReadyOnly = false end
 if settings.readyThresholdHours == nil then settings.readyThresholdHours = 10 end
 if settings.showCDName == nil then settings.showCDName = false end
+if settings.limitEnabled == nil then settings.limitEnabled = false end
+if settings.limitCount == nil then settings.limitCount = 10 end
 
 -- Frame + Events
 local f = CreateFrame("Frame")
@@ -294,6 +296,9 @@ local function UpdateUI()
     local i = 1
     local numVisible = 0
     for _, data in ipairs(cooldownData) do
+        if settings.limitEnabled and numVisible >= settings.limitCount then
+            break
+        end
         local remain = data.remain
         local duration = data.duration
         local char = data.char
@@ -424,8 +429,26 @@ SlashCmdList["PCT"] = function(msg)
             print("|cff33ff99PCT|r Cooldown names hidden.")
         end
         UpdateUI()
+    elseif args[1] == "limit" then
+        if args[2] and tonumber(args[2]) then
+            local val = tonumber(args[2])
+            ProfessionCDTrackerDB.settings.limitCount = val
+            ProfessionCDTrackerDB.settings.limitEnabled = true
+            settings.limitCount = val
+            settings.limitEnabled = true
+            print("|cff33ff99PCT|r Limiting bars to " .. val)
+        else
+            ProfessionCDTrackerDB.settings.limitEnabled = not ProfessionCDTrackerDB.settings.limitEnabled
+            settings.limitEnabled = ProfessionCDTrackerDB.settings.limitEnabled
+            if settings.limitEnabled then
+                print("|cff33ff99PCT|r Limiting bars to " .. settings.limitCount)
+            else
+                print("|cff33ff99PCT|r Bar limit disabled.")
+            end
+        end
+        UpdateUI()
     else
-        print("|cff33ff99PCT|r Commands: /pct show, /pct hide, /pct lock, /pct unlock, /pct width <n>, /pct height <n>, /pct ready [<hr>], /pct cdname")
+        print("|cff33ff99PCT|r Commands: /pct show, /pct hide, /pct lock, /pct unlock, /pct width <n>, /pct height <n>, /pct ready [<hr>], /pct cdname, /pct limit [<n>]")
     end
 end
 
@@ -436,9 +459,8 @@ f:SetScript("OnEvent", function(self, event, ...)
         print("|cff33ff99PCT|r Loaded " .. ADDON_NAME .. " v" .. VERSION)
         -- Ensure settings table exists and sync local reference
         ProfessionCDTrackerDB.settings = ProfessionCDTrackerDB.settings or {}
-        -- Update local settings reference to point to the (possibly reloaded) SavedVariables
-        -- Note: Since 'settings' is a local reference, we need to ensure it points to the current table
-        -- But actually, it's already a reference, so we just need to ensure values are set correctly
+        settings = ProfessionCDTrackerDB.settings
+        
         if ProfessionCDTrackerDB.settings.showReadyOnly == nil then
             ProfessionCDTrackerDB.settings.showReadyOnly = false
         end
@@ -447,6 +469,12 @@ f:SetScript("OnEvent", function(self, event, ...)
         end
         if ProfessionCDTrackerDB.settings.showCDName == nil then
             ProfessionCDTrackerDB.settings.showCDName = false
+        end
+        if ProfessionCDTrackerDB.settings.limitEnabled == nil then
+            ProfessionCDTrackerDB.settings.limitEnabled = false
+        end
+        if ProfessionCDTrackerDB.settings.limitCount == nil then
+            ProfessionCDTrackerDB.settings.limitCount = 10
         end
         -- Restore early in case PLAYER_LOGIN timing varies
         RestoreContainerPosition()

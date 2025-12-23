@@ -16,6 +16,7 @@ if settings.readyThresholdHours == nil then settings.readyThresholdHours = 10 en
 if settings.showCDName == nil then settings.showCDName = false end
 if settings.limitEnabled == nil then settings.limitEnabled = false end
 if settings.limitCount == nil then settings.limitCount = 10 end
+if settings.blacklist == nil then settings.blacklist = {} end
 
 -- Frame + Events
 local f = CreateFrame("Frame")
@@ -127,6 +128,78 @@ local function SaveCooldown(key, start, duration)
         duration = storedDuration,
         expiresEpoch = expiresEpoch,
     }
+
+    -- Root cause fix: If this is a shared cooldown, update all other members of the group
+    if trackInfo and trackInfo.sharedCooldown then
+        for otherKey, otherInfo in pairs(TRACKED) do
+            if otherKey ~= key and otherInfo.sharedCooldown == trackInfo.sharedCooldown then
+                charDB.cooldowns[otherKey] = {
+                    duration = storedDuration,
+                    expiresEpoch = expiresEpoch,
+                }
+            end
+        end
+    end
+end
+
+-- Helper to get all tracked cooldowns, sorted and filtered
+local function GetAllCooldowns()
+    local cooldownData = {}
+    local now = time()
+    for realm, chars in pairs(ProfessionCDTrackerDB.realms) do
+        for char, data in pairs(chars) do
+            if data.cooldowns then
+                for key, cd in pairs(data.cooldowns) do
+                    local expiresEpoch = cd.expiresEpoch or cd.expires
+                    if expiresEpoch then
+                        local remain = math.max(0, expiresEpoch - now)
+                        local duration = cd.duration or 1
+                        
+                        local info = TRACKED[key] or TRACKED[cd.label]
+                        if info and info.duration then duration = info.duration end
+
+                        local label = (type(key) == "string" and key) or (info and info.label) or "?"
+                        
+                        table.insert(cooldownData, {
+                            char = char,
+                            realm = realm,
+                            key = key,
+                            label = label,
+                            remain = remain,
+                            duration = duration,
+                            expiresEpoch = expiresEpoch,
+                            icon = info and info.icon,
+                            sharedCooldown = info and info.sharedCooldown
+                        })
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Filter out duplicates for shared cooldowns (keep the one with longest remaining time)
+    local sharedCooldownGroups = {}
+    local filteredByShared = {}
+    for _, data in ipairs(cooldownData) do
+        if data.sharedCooldown then
+            local groupKey = data.realm .. ":" .. data.char .. ":" .. data.sharedCooldown
+            if not sharedCooldownGroups[groupKey] or data.expiresEpoch > sharedCooldownGroups[groupKey].expiresEpoch then
+                sharedCooldownGroups[groupKey] = data
+            end
+        else
+            table.insert(filteredByShared, data)
+        end
+    end
+    for _, data in pairs(sharedCooldownGroups) do
+        table.insert(filteredByShared, data)
+    end
+    
+    -- Sort by remaining time (ascending - least time first)
+    table.sort(filteredByShared, function(a, b)
+        return a.remain < b.remain
+    end)
+    
+    return filteredByShared
 end
 
 -- Scans
@@ -209,71 +282,8 @@ local function CreateBar(index)
 end
 
 local function UpdateUI()
-    -- Collect all cooldowns into a sortable array
-    local cooldownData = {}
-    for realm, chars in pairs(ProfessionCDTrackerDB.realms) do
-        for char, data in pairs(chars) do
-            if data.cooldowns then
-                for key, cd in pairs(data.cooldowns) do
-                    local expiresEpoch = cd.expiresEpoch or cd.expires
-                    if expiresEpoch then
-                        local nowEpoch = time()
-                        local remain = expiresEpoch - nowEpoch
-                        if remain < 0 then remain = 0 end
-                        local duration = cd.duration or 1
-                        if duration > 0 then
-                            -- Clamp to stored duration to prevent bogus long remains
-                            remain = math.min(remain, duration)
-                        end
-                        
-                        local info = TRACKED[key] or TRACKED[cd.label]
-                        local hardcodedDuration = info and info.duration
-                        if hardcodedDuration then
-                            duration = hardcodedDuration
-                        end
-
-                        local label = (type(key) == "string" and key) or (info and info.label) or "?"
-                        
-                        table.insert(cooldownData, {
-                            char = char,
-                            key = key,
-                            label = label,
-                            remain = remain,
-                            duration = duration,
-                            expiresEpoch = expiresEpoch,
-                            icon = info and info.icon,
-                            sharedCooldown = info and info.sharedCooldown
-                        })
-                    end
-                end
-            end
-        end
-    end
-    
-    -- Filter out duplicates for shared cooldowns (only show one per shared cooldown group)
-    -- Group by character and shared cooldown, keep the one with longest remaining time
-    local sharedCooldownGroups = {}
-    local filteredByShared = {}
-    for _, data in ipairs(cooldownData) do
-        if data.sharedCooldown then
-            local groupKey = data.char .. ":" .. data.sharedCooldown
-            if not sharedCooldownGroups[groupKey] then
-                sharedCooldownGroups[groupKey] = data
-            else
-                -- Keep the one with the longest remaining time (or earliest expiresEpoch)
-                if data.expiresEpoch > sharedCooldownGroups[groupKey].expiresEpoch then
-                    sharedCooldownGroups[groupKey] = data
-                end
-            end
-        else
-            table.insert(filteredByShared, data)
-        end
-    end
-    -- Add the kept shared cooldown entries
-    for _, data in pairs(sharedCooldownGroups) do
-        table.insert(filteredByShared, data)
-    end
-    cooldownData = filteredByShared
+    -- Get all cooldowns from our new helper
+    local cooldownData = GetAllCooldowns()
     
     -- Filter by ready time if enabled (read directly from SavedVariables to ensure we get the latest value)
     if ProfessionCDTrackerDB.settings.showReadyOnly then
@@ -286,11 +296,6 @@ local function UpdateUI()
         end
         cooldownData = filteredData
     end
-    
-    -- Sort by remaining time (ascending - least time first)
-    table.sort(cooldownData, function(a, b)
-        return a.remain < b.remain
-    end)
     
     -- Now update bars in sorted order
     local i = 1
@@ -447,8 +452,81 @@ SlashCmdList["PCT"] = function(msg)
             end
         end
         UpdateUI()
+    elseif args[1] == "blacklist" then
+        local name = args[2]
+        if not name or name == "" then
+            print("|cff33ff99PCT|r Blacklisted characters:")
+            local found = false
+            for bName, _ in pairs(settings.blacklist) do
+                print("  - " .. bName)
+                found = true
+            end
+            if not found then print("  (none)") end
+            print("Usage: /pct blacklist <name>")
+        else
+            -- Capitalize first letter of name for consistency
+            name = name:sub(1,1):upper() .. name:sub(2):lower()
+            if settings.blacklist[name] then
+                settings.blacklist[name] = nil
+                print("|cff33ff99PCT|r Removed " .. name .. " from blacklist.")
+            else
+                settings.blacklist[name] = true
+                print("|cff33ff99PCT|r Added " .. name .. " to blacklist.")
+            end
+        end
+    elseif args[1] == "prepare" then
+        local currentName = UnitName("player")
+        local currentRealm = GetRealmName()
+
+        -- Use the helper to find the most ready character
+        local cooldownData = GetAllCooldowns()
+        local nextChar = nil
+        
+        -- First pass: Find the first character that actually has a ready cooldown (remain <= 0)
+        for _, data in ipairs(cooldownData) do
+            -- Skip current char only; blacklisted characters ARE allowed to be activated
+            if (data.char ~= currentName or data.realm ~= currentRealm) then
+                if data.remain <= 0 then
+                    nextChar = data.char
+                    break
+                end
+            end
+        end
+
+        -- Second pass: If no one is ready, pick the one who will be ready soonest (first in sorted list)
+        if not nextChar then
+            for _, data in ipairs(cooldownData) do
+                -- Skip current char only; blacklisted characters ARE allowed to be activated
+                if (data.char ~= currentName or data.realm ~= currentRealm) then
+                    nextChar = data.char
+                    break
+                end
+            end
+        end
+
+        local isBlacklisted = settings.blacklist[currentName]
+
+        -- Only deactivate current if NOT blacklisted
+        if not isBlacklisted then
+            SendChatMessage(".char deactivate " .. currentName, "SAY")
+        else
+            print("|cff33ff99PCT|r " .. currentName .. " is blacklisted. Skipping deactivation.")
+        end
+
+        if nextChar then
+            if not isBlacklisted then
+                print("|cff33ff99PCT|r Deactivating " .. currentName .. " and activating " .. nextChar .. ".")
+            else
+                print("|cff33ff99PCT|r Activating " .. nextChar .. ".")
+            end
+            SendChatMessage(".char activate " .. nextChar, "SAY")
+        elseif not isBlacklisted then
+            print("|cff33ff99PCT|r Deactivating " .. currentName .. ". No other character with ready cooldowns found.")
+        else
+            print("|cff33ff99PCT|r No other character with ready cooldowns found.")
+        end
     else
-        print("|cff33ff99PCT|r Commands: /pct show, /pct hide, /pct lock, /pct unlock, /pct width <n>, /pct height <n>, /pct ready [<hr>], /pct cdname, /pct limit [<n>]")
+        print("|cff33ff99PCT|r Commands: /pct show, /pct hide, /pct lock, /pct unlock, /pct width <n>, /pct height <n>, /pct ready [<hr>], /pct cdname, /pct limit [<n>], /pct blacklist [<name>], /pct prepare")
     end
 end
 
@@ -475,6 +553,9 @@ f:SetScript("OnEvent", function(self, event, ...)
         end
         if ProfessionCDTrackerDB.settings.limitCount == nil then
             ProfessionCDTrackerDB.settings.limitCount = 10
+        end
+        if ProfessionCDTrackerDB.settings.blacklist == nil then
+            ProfessionCDTrackerDB.settings.blacklist = {}
         end
         -- Restore early in case PLAYER_LOGIN timing varies
         RestoreContainerPosition()

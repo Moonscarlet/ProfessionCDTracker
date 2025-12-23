@@ -25,6 +25,9 @@ Optional:
 - `/pct ready [<hours>]` — filter to show only cooldowns ready within threshold (default 10 hours). Use without number to toggle on/off.
 - `/pct cdname` — toggle showing cooldown names on bars (e.g. "Char-Moon" vs just "Char")
 - `/pct limit [<number>]` — limit the number of bars shown (default 10). Use without number to toggle on/off.
+- `/pct blacklist [<name>]` — toggle a character on/off the blacklist. Blacklisted characters are never deactivated by `/pct prepare`, but they can still be chosen as the next character to activate.
+- `/pct prepare` — find the next character with a ready cooldown (or the one ready soonest), deactivate current char (if not blacklisted), and activate the next one.
 
 Note:
 - Bars may not appear till after first use of cooldowns.
+- `.char activate/deactivate` commands are sent to the "SAY" channel, which is used by Ascension WoW's character swapping system.

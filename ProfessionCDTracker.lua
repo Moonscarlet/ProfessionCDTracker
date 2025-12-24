@@ -482,10 +482,9 @@ SlashCmdList["PCT"] = function(msg)
         local cooldownData = GetAllCooldowns()
         local nextChar = nil
         
-        -- First pass: Find the first character that actually has a ready cooldown (remain <= 0)
+        -- pass 1: Find the first NON-blacklisted character that has a ready cooldown
         for _, data in ipairs(cooldownData) do
-            -- Skip current char only; blacklisted characters ARE allowed to be activated
-            if (data.char ~= currentName or data.realm ~= currentRealm) then
+            if (data.char ~= currentName or data.realm ~= currentRealm) and not settings.blacklist[data.char] then
                 if data.remain <= 0 then
                     nextChar = data.char
                     break
@@ -493,11 +492,32 @@ SlashCmdList["PCT"] = function(msg)
             end
         end
 
-        -- Second pass: If no one is ready, pick the one who will be ready soonest (first in sorted list)
+        -- pass 2: Find the first blacklisted character that has a ready cooldown
         if not nextChar then
             for _, data in ipairs(cooldownData) do
-                -- Skip current char only; blacklisted characters ARE allowed to be activated
-                if (data.char ~= currentName or data.realm ~= currentRealm) then
+                if (data.char ~= currentName or data.realm ~= currentRealm) and settings.blacklist[data.char] then
+                    if data.remain <= 0 then
+                        nextChar = data.char
+                        break
+                    end
+                end
+            end
+        end
+
+        -- pass 3: Find the first NON-blacklisted character (whoever is soonest)
+        if not nextChar then
+            for _, data in ipairs(cooldownData) do
+                if (data.char ~= currentName or data.realm ~= currentRealm) and not settings.blacklist[data.char] then
+                    nextChar = data.char
+                    break
+                end
+            end
+        end
+
+        -- pass 4: Find the first blacklisted character (whoever is soonest)
+        if not nextChar then
+            for _, data in ipairs(cooldownData) do
+                if (data.char ~= currentName or data.realm ~= currentRealm) and settings.blacklist[data.char] then
                     nextChar = data.char
                     break
                 end

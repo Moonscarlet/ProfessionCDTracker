@@ -504,20 +504,10 @@ SlashCmdList["PCT"] = function(msg)
             end
         end
 
-        -- pass 3: Find the first NON-blacklisted character (whoever is soonest)
+        -- pass 3: No one is ready. Pick the absolute soonest character, regardless of blacklist.
         if not nextChar then
             for _, data in ipairs(cooldownData) do
-                if (data.char ~= currentName or data.realm ~= currentRealm) and not settings.blacklist[data.char] then
-                    nextChar = data.char
-                    break
-                end
-            end
-        end
-
-        -- pass 4: Find the first blacklisted character (whoever is soonest)
-        if not nextChar then
-            for _, data in ipairs(cooldownData) do
-                if (data.char ~= currentName or data.realm ~= currentRealm) and settings.blacklist[data.char] then
+                if (data.char ~= currentName or data.realm ~= currentRealm) then
                     nextChar = data.char
                     break
                 end

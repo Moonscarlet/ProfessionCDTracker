@@ -17,6 +17,7 @@ if settings.showCDName == nil then settings.showCDName = false end
 if settings.limitEnabled == nil then settings.limitEnabled = false end
 if settings.limitCount == nil then settings.limitCount = 10 end
 if settings.blacklist == nil then settings.blacklist = {} end
+if settings.scale == nil then settings.scale = 1.0 end
 
 -- Frame + Events
 local f = CreateFrame("Frame")
@@ -65,6 +66,7 @@ container:SetScript("OnDragStop", function(self)
 end)
 
 local function RestoreContainerPosition()
+    container:SetScale(settings.scale or 1.0)
     if settings.anchor and settings.anchor.point then
         container:ClearAllPoints()
         container:SetPoint(settings.anchor.point, UIParent, settings.anchor.relativePoint or settings.anchor.point, settings.anchor.x or 0, settings.anchor.y or 0)
@@ -452,6 +454,11 @@ SlashCmdList["PCT"] = function(msg)
             end
         end
         UpdateUI()
+    elseif args[1] == "scale" and tonumber(args[2]) then
+        local val = tonumber(args[2])
+        settings.scale = val
+        container:SetScale(val)
+        print("|cff33ff99PCT|r Scale set to", val)
     elseif args[1] == "blacklist" then
         local name = args[2]
         if not name or name == "" then
@@ -536,7 +543,7 @@ SlashCmdList["PCT"] = function(msg)
             print("|cff33ff99PCT|r No other character with ready cooldowns found.")
         end
     else
-        print("|cff33ff99PCT|r Commands: /pct show, /pct hide, /pct lock, /pct unlock, /pct width <n>, /pct height <n>, /pct ready [<hr>], /pct cdname, /pct limit [<n>], /pct blacklist [<name>], /pct prepare")
+        print("|cff33ff99PCT|r Commands: /pct show, /pct hide, /pct lock, /pct unlock, /pct width <n>, /pct height <n>, /pct scale <n>, /pct ready [<hr>], /pct cdname, /pct limit [<n>], /pct blacklist [<name>], /pct prepare")
     end
 end
 
@@ -566,6 +573,9 @@ f:SetScript("OnEvent", function(self, event, ...)
         end
         if ProfessionCDTrackerDB.settings.blacklist == nil then
             ProfessionCDTrackerDB.settings.blacklist = {}
+        end
+        if ProfessionCDTrackerDB.settings.scale == nil then
+            ProfessionCDTrackerDB.settings.scale = 1.0
         end
         -- Restore early in case PLAYER_LOGIN timing varies
         RestoreContainerPosition()

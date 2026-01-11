@@ -18,6 +18,7 @@ if settings.limitEnabled == nil then settings.limitEnabled = false end
 if settings.limitCount == nil then settings.limitCount = 10 end
 if settings.blacklist == nil then settings.blacklist = {} end
 if settings.scale == nil then settings.scale = 1.0 end
+if settings.opacity == nil then settings.opacity = 1.0 end
 
 -- Frame + Events
 local f = CreateFrame("Frame")
@@ -67,6 +68,7 @@ end)
 
 local function RestoreContainerPosition()
     container:SetScale(settings.scale or 1.0)
+    container:SetAlpha(settings.opacity or 1.0)
     if settings.anchor and settings.anchor.point then
         container:ClearAllPoints()
         container:SetPoint(settings.anchor.point, UIParent, settings.anchor.relativePoint or settings.anchor.point, settings.anchor.x or 0, settings.anchor.y or 0)
@@ -459,6 +461,11 @@ SlashCmdList["PCT"] = function(msg)
         settings.scale = val
         container:SetScale(val)
         print("|cff33ff99PCT|r Scale set to", val)
+    elseif args[1] == "opacity" and tonumber(args[2]) then
+        local val = tonumber(args[2])
+        settings.opacity = val
+        container:SetAlpha(val)
+        print("|cff33ff99PCT|r Opacity set to", val)
     elseif args[1] == "blacklist" then
         local name = args[2]
         if not name or name == "" then
@@ -543,7 +550,20 @@ SlashCmdList["PCT"] = function(msg)
             print("|cff33ff99PCT|r No other character with ready cooldowns found.")
         end
     else
-        print("|cff33ff99PCT|r Commands: /pct show, /pct hide, /pct lock, /pct unlock, /pct width <n>, /pct height <n>, /pct scale <n>, /pct ready [<hr>], /pct cdname, /pct limit [<n>], /pct blacklist [<name>], /pct prepare")
+        print("|cff33ff99PCT|r Commands:")
+        print("  /pct show - show the bars")
+        print("  /pct hide - hide the bars")
+        print("  /pct lock - lock the bars")
+        print("  /pct unlock - unlock the bars")
+        print("  /pct width <n> - set bar width")
+        print("  /pct height <n> - set bar height")
+        print("  /pct scale <n> - set overall UI scale")
+        print("  /pct opacity <n> - set overall UI opacity")
+        print("  /pct ready [<hr>] - filter by ready time")
+        print("  /pct cdname - toggle cooldown names")
+        print("  /pct limit [<n>] - limit number of bars")
+        print("  /pct blacklist [<name>] - manage character blacklist")
+        print("  /pct prepare - cycle to next character")
     end
 end
 
@@ -576,6 +596,9 @@ f:SetScript("OnEvent", function(self, event, ...)
         end
         if ProfessionCDTrackerDB.settings.scale == nil then
             ProfessionCDTrackerDB.settings.scale = 1.0
+        end
+        if ProfessionCDTrackerDB.settings.opacity == nil then
+            ProfessionCDTrackerDB.settings.opacity = 1.0
         end
         -- Restore early in case PLAYER_LOGIN timing varies
         RestoreContainerPosition()

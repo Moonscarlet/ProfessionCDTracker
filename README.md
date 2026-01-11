@@ -23,6 +23,7 @@ Optional:
 - `/pct width <number>` — change bar width (e.g. 240)
 - `/pct height <number>` — change bar height (e.g. 14)
 - `/pct scale <number>` — change overall UI scale (e.g. 1.2 for 120%, 0.8 for 80%)
+- `/pct opacity <number>` — change overall UI opacity (0.0 to 1.0)
 - `/pct ready [<hours>]` — filter to show only cooldowns ready within threshold (default 10 hours). Use without number to toggle on/off.
 - `/pct cdname` — toggle showing cooldown names on bars (e.g. "Char-Moon" vs just "Char")
 - `/pct limit [<number>]` — limit the number of bars shown (default 10). Use without number to toggle on/off.

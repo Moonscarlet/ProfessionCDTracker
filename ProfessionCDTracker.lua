@@ -374,8 +374,10 @@ local function UpdateUI()
         local remain = data.remain
         local duration = data.duration
         local char = data.char
-        --trim char name to 10 characters
-        char = string.sub(char, 1, 7)
+        --trim char name to 7 characters if cd isn't ready
+        if remain > 0 then
+            char = string.sub(char, 1, 7)
+        end
         local label = data.label
         local expiresEpoch = data.expiresEpoch
         local iconId = data.icon

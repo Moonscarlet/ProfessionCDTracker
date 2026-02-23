@@ -198,14 +198,13 @@ local function GetAllCooldowns()
         table.insert(filteredByShared, data)
     end
     
-    -- Sort by remaining time (ascending - least time first)
-    table.sort(filteredByShared, function(a, b)
-        return a.remain < b.remain
-    end)
-
     -- Sort cooldowns:
     -- 1. Ready cooldowns come first.
-    --    Among ready cooldowns: non-blacklisted first, then alphabetical by char, then alphabetical by label.
+    --    Among ready cooldowns:
+    --      a. Non-blacklisted first
+    --      b. Cooldown type priority (Transmutes before Mooncloth)
+    --      c. Alphabetical by character name
+    --      d. Alphabetical by label
     -- 2. Non-ready cooldowns are sorted by remaining time (ascending), then alphabetical.
     table.sort(filteredByShared, function(a, b)
         local aReady = a.remain <= 0
@@ -215,19 +214,30 @@ local function GetAllCooldowns()
             local aBlacklisted = settings.blacklist and settings.blacklist[a.char] and true or false
             local bBlacklisted = settings.blacklist and settings.blacklist[b.char] and true or false
             
-            -- Blacklisted characters go to the end of the ready list
+            -- 1. Blacklisted characters go to the end of the ready list
             if aBlacklisted ~= bBlacklisted then
                 return not aBlacklisted
             end
             
-            -- Alphabetical by character name
+            -- 2. Priority by cooldown label (Transmutes first, then Mooncloth)
+            local aLabel = a.label or ""
+            local bLabel = b.label or ""
+            
+            local aPri = aLabel:match("^Transmute") and 1 or (aLabel:match("^Mooncloth") and 2 or 3)
+            local bPri = bLabel:match("^Transmute") and 1 or (bLabel:match("^Mooncloth") and 2 or 3)
+            
+            if aPri ~= bPri then
+                return aPri < bPri
+            end
+
+            -- 3. Alphabetical by character name
             if a.char ~= b.char then
                 return a.char < b.char
             end
             
-            -- Alphabetical by cooldown label
-            if a.label ~= b.label then
-                return a.label < b.label
+            -- 4. Alphabetical by cooldown label as fallback
+            if aLabel ~= bLabel then
+                return aLabel < bLabel
             end
             
             return false
@@ -246,8 +256,10 @@ local function GetAllCooldowns()
                 return a.char < b.char
             end
             
-            if a.label ~= b.label then
-                return a.label < b.label
+            local aLabel = a.label or ""
+            local bLabel = b.label or ""
+            if aLabel ~= bLabel then
+                return aLabel < bLabel
             end
             
             return false

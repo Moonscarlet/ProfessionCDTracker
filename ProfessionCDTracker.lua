@@ -202,6 +202,57 @@ local function GetAllCooldowns()
     table.sort(filteredByShared, function(a, b)
         return a.remain < b.remain
     end)
+
+    -- Sort cooldowns:
+    -- 1. Ready cooldowns come first.
+    --    Among ready cooldowns: non-blacklisted first, then alphabetical by char, then alphabetical by label.
+    -- 2. Non-ready cooldowns are sorted by remaining time (ascending), then alphabetical.
+    table.sort(filteredByShared, function(a, b)
+        local aReady = a.remain <= 0
+        local bReady = b.remain <= 0
+        
+        if aReady and bReady then
+            local aBlacklisted = settings.blacklist and settings.blacklist[a.char] and true or false
+            local bBlacklisted = settings.blacklist and settings.blacklist[b.char] and true or false
+            
+            -- Blacklisted characters go to the end of the ready list
+            if aBlacklisted ~= bBlacklisted then
+                return not aBlacklisted
+            end
+            
+            -- Alphabetical by character name
+            if a.char ~= b.char then
+                return a.char < b.char
+            end
+            
+            -- Alphabetical by cooldown label
+            if a.label ~= b.label then
+                return a.label < b.label
+            end
+            
+            return false
+        elseif aReady then
+            return true
+        elseif bReady then
+            return false
+        else
+            -- If neither is ready, sort by remaining time (least time first)
+            if a.remain ~= b.remain then
+                return a.remain < b.remain
+            end
+            
+            -- Fallbacks to keep sorting consistent when remaining time is exactly identical
+            if a.char ~= b.char then
+                return a.char < b.char
+            end
+            
+            if a.label ~= b.label then
+                return a.label < b.label
+            end
+            
+            return false
+        end
+    end)
     
     return filteredByShared
 end
